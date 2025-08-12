@@ -7,6 +7,13 @@ import sys
 def connec_to_db():
     load_dotenv()
     MONGODB_URI = os.getenv("MONGODB_URI")
+    
+    if MONGODB_URI:
+        print(f"✅ MONGODB_URI found: {MONGODB_URI[:20]}...")
+    else:
+        print("❌ MONGODB_URI not found in environment")
+        print("Available env vars:", list(os.environ.keys()))
+    
     try:
         client = MongoClient(MONGODB_URI)
         client.admin.command('ping')
