@@ -12,14 +12,14 @@ async def get_all_doc_years():
     for collection in collection_names:
         collections_set.append(collection)
     return {
-        "collections" : collections_set
+        "doc_collections" : collections_set
         }
 
 @router.get("/documents/{doc_year}")
 async def get_all_docs_for_year(doc_year : str):
     if doc_year not in collection_names:
         return {
-            "message" : "Year not found"
+            "error" : "Year not found"
         }
     collection = db[str(doc_year)]
     docs = collection.find()
@@ -29,7 +29,7 @@ async def get_all_docs_for_year(doc_year : str):
 async def get_individual_doc(doc_year : str, doc_id : str):
     if doc_year not in collection_names:
         return {
-            "message" : "Year not found"
+            "error" : "Year not found"
         }
     collection = db[str(doc_year)]
     doc = collection.find_one({
