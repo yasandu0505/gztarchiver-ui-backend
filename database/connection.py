@@ -19,6 +19,7 @@ def connec_to_db():
 
 client = connec_to_db()
 db = client.doc_db
-collection = db["gazettes_2015"]
+collection_names = db.list_collection_names()
+
 
 
