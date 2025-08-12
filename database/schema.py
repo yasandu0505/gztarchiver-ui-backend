@@ -1,10 +1,14 @@
-def individual_product(product):
+def individual_doc(doc):
     return {
-        "id": str(product["_id"]),
-        "name": product["name"],
-        "category": product["category"],
-        "inStock": product["inStock"]
+        "id": str(doc["_id"]),
+        "document_id": doc["document_id"],
+        "document_date": doc["document_date"],
+        "document_type": doc["document_type"],
+        "reasoning": doc["reasoning"],
+        "gdrive_file_id": doc["gdrive_file_id"],
+        "gdrive_file_url": doc["gdrive_file_url"],
+        "download_url": doc["download_url"]
     }
     
-def all_products(products):
-    return [individual_product(product) for product in products]
+def all_docs(docs):
+    return [individual_doc(doc) for doc in docs]
