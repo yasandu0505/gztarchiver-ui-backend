@@ -18,7 +18,7 @@ def connec_to_db():
         return None
 
 client = connec_to_db()
-db = client.testdb
-collection = db["products"]
+db = client.doc_db
+collection = db["gazettes_2015"]
 
 
