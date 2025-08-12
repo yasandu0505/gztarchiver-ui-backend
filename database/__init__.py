@@ -1,8 +1,8 @@
 from .connection import collection
-from .schema import individual_product, all_products
+from .schema import individual_doc, all_docs
 
 __all__ = [
     "collection",
-    "individual_product",
-    "all_products"
+    "individual_doc",
+    "all_docs"
 ]
