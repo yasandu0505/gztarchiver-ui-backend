@@ -8,5 +8,6 @@ class Docs(BaseModel):
     reasoning : str
     file_path : str
     download_url : str
+    source : str
     availability : str
     

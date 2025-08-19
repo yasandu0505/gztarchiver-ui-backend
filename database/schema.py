@@ -8,6 +8,7 @@ def individual_doc(doc):
         "reasoning": doc["reasoning"],
         "file_path": doc["file_path"],
         "download_url": doc["download_url"],
+        "source": doc["source"],
         "availability": doc["availability"]
     }
     
