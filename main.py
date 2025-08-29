@@ -33,8 +33,21 @@ async def get_dashboard_statu():
                 languages.add("Sinhala")
             if "tamil" in fp:
                 languages.add("Tamil")
+                
+    # ✅ Years covered
+    years = sorted([
+        int(col.replace("gazettes_", "")) 
+        for col in collection_names 
+        if col.startswith("gazettes_") and col.replace("gazettes_", "").isdigit()
+        ])
+
+    years_covered = {"from": years[0], "to": years[-1]} if years else {}
+    
     return {
-        "total_docs" : total_docs
+        "total_docs" : total_docs,
+        "available_languages" : list(languages),
+        "years_covered": years_covered
+
     }
 
 @router.get("/documents/{doc_year}")
