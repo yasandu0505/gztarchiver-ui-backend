@@ -15,56 +15,27 @@ async def get_all_doc_years():
     return {
         "doc_collections" : collections_set
         }
-
-# @router.get("/documents/{doc_year}")
-# async def get_all_docs_for_year(
-#     doc_year: str,
-#     limit: Optional[int] = Query(default=None, ge=1, le=1000, description="Number of documents per page"),
-#     offset: int = Query(default=0, ge=0, description="Number of documents to skip")
-# ):
-#     if doc_year not in collection_names:
-#         return {
-#             "error": "Year not found"
-#         }
     
-#     collection = db[str(doc_year)]
+@router.get("/dashboard-status")
+async def get_dashboard_statu():
+    # ✅ Total documents
+    total_docs = sum(db[col].count_documents({}) for col in collection_names)
     
-#     # Get total count for pagination metadata
-#     total_count = collection.count_documents({})
-    
-#     # Apply pagination only if limit is provided
-#     if limit is not None:
-#         docs = collection.find().skip(offset).limit(limit)
-        
-#         # Calculate pagination metadata
-#         has_next = (offset + limit) < total_count
-#         has_previous = offset > 0
-#         total_pages = (total_count + limit - 1) // limit  # Ceiling division
-#         current_page = (offset // limit) + 1
-        
-#         documents = all_docs(docs)
-        
-#         return {
-#             "documents": documents,
-#             "pagination": {
-#                 "total_count": total_count,
-#                 "current_page": current_page,
-#                 "total_pages": total_pages,
-#                 "has_next": has_next,
-#                 "has_previous": has_previous,
-#                 "limit": limit,
-#                 "offset": offset
-#             }
-#         }
-#     else:
-#         # Return all documents without pagination (your original behavior)
-#         docs = collection.find()
-#         documents = all_docs(docs)
-        
-#         return {
-#             "documents": documents,
-#             "total_count": total_count
-#         }
+    # ✅ Available languages
+    languages = set()
+    for col in collection_names:
+        cursor = db[col].find({}, {"file_path": 1})
+        for doc in cursor:
+            fp = doc.get("file_path", "").lower()
+            if "english" in fp:
+                languages.add("English")
+            if "sinhala" in fp:
+                languages.add("Sinhala")
+            if "tamil" in fp:
+                languages.add("Tamil")
+    return {
+        "total_docs" : total_docs
+    }
 
 @router.get("/documents/{doc_year}")
 async def get_all_docs_for_year(
