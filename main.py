@@ -168,55 +168,6 @@ async def search_documents(payload: dict = Body(...)):
         }
     }
 
-# def serialize_doc(doc):
-#     """Convert Mongo _id and return only relevant fields"""
-#     return {
-#         "id": str(doc["_id"]),
-#         "document_id": doc.get("document_id"),
-#         "description": doc.get("description"),
-#         "document_date": doc.get("document_date"),
-#         "document_type": doc.get("document_type"),
-#         "file_path": doc.get("file_path"),
-#         "download_url": doc.get("download_url"),
-#         "source": doc.get("source"),
-#         "availability": doc.get("availability"),
-#         "score": doc.get("score", 0)  
-#     }
-
-# @app.post("/search")
-# async def search_documents(payload: dict = Body(...)):
-#     query = payload.get("query", "")
-#     if not query:
-#         return {"results": []}
-    
-#     results = []
-#     for col in collection_names:
-#         # Search only in document_type and description fields using $or operator
-#         cursor = db[col].find(
-#             {
-#                 "$or": [
-#                     {"document_type": {"$regex": query, "$options": "i"}},
-#                     {"description": {"$regex": query, "$options": "i"}}
-#                 ]
-#             },
-#             {
-#                 "document_id": 1,
-#                 "description": 1,
-#                 "document_date": 1,
-#                 "document_type": 1,
-#                 "file_path": 1,
-#                 "download_url": 1,
-#                 "source": 1,
-#                 "availability": 1
-#             }
-#         )
-
-#         results.extend([serialize_doc(doc) for doc in cursor])
-
-#     results = sorted(results, key=lambda x: x.get("document_date", ""), reverse=True)
-
-#     return {"results": results}
-
 @router.get("/documents/{doc_year}")
 async def get_all_docs_for_year(
     doc_year: str,
