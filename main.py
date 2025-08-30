@@ -17,7 +17,7 @@ async def get_all_doc_years():
         }
     
 @router.get("/dashboard-status")
-async def get_dashboard_statu():
+async def get_dashboard_status():
     #  Total documents
     total_docs = sum(db[col].count_documents({}) for col in collection_names)
     
@@ -49,7 +49,7 @@ async def get_dashboard_statu():
         "years_covered": years_covered
 
     }
-    
+
 def serialize_doc(doc):
     """Convert Mongo _id and return only relevant fields"""
     return {
@@ -87,13 +87,21 @@ async def search_documents(payload: dict = Body(...)):
     # Calculate offset
     offset = (page - 1) * limit
     
-    # Build the search query
+    # Build the search query with additional fields
     search_query = {
         "$or": [
             {"document_type": {"$regex": query, "$options": "i"}},
-            {"description": {"$regex": query, "$options": "i"}}
+            {"description": {"$regex": query, "$options": "i"}},
+            {"document_id": {"$regex": query, "$options": "i"}},  # Added document_id search
+            {"document_date": query}  # Exact match for date (since it's in YYYY-MM-DD format)
         ]
     }
+    
+    # If the query looks like a date pattern, also add partial date matching
+    # This allows searching for "2015" to find all documents from 2015
+    # or "2015-01" to find all documents from January 2015
+    if query.replace("-", "").isdigit() and len(query) >= 4:
+        search_query["$or"].append({"document_date": {"$regex": f"^{query}", "$options": "i"}})
     
     projection = {
         "document_id": 1,
@@ -122,13 +130,13 @@ async def search_documents(payload: dict = Body(...)):
     for col in collection_names:
         if remaining_limit <= 0:
             break
-            
+        
         # Get count for this collection
         col_count = db[col].count_documents(search_query)
         
         if col_count == 0:
             continue
-            
+        
         if remaining_offset >= col_count:
             # Skip this entire collection
             remaining_offset -= col_count
@@ -168,6 +176,88 @@ async def search_documents(payload: dict = Body(...)):
         }
     }
 
+@app.get("/dashboard-status/pie-chart")
+async def get_document_type_counts():
+    """
+    Get count of documents by document_type for pie chart visualization
+    Returns data formatted for MUI pie chart component
+    """
+    try:
+        # Dictionary to store aggregated counts
+        type_counts = {}
+        
+        # Aggregate counts from all collections
+        for col in collection_names:
+            # Use MongoDB aggregation pipeline to group by document_type
+            pipeline = [
+                {
+                    "$group": {
+                        "_id": "$document_type",
+                        "count": {"$sum": 1}
+                    }
+                },
+                {
+                    "$sort": {"count": -1}  # Sort by count in descending order
+                }
+            ]
+            
+            # Execute aggregation
+            results = list(db[col].aggregate(pipeline))
+            
+            # Aggregate results across collections
+            for result in results:
+                doc_type = result["_id"] or "Uncategorized"  # Handle null/empty document_type
+                count = result["count"]
+                
+                if doc_type in type_counts:
+                    type_counts[doc_type] += count
+                else:
+                    type_counts[doc_type] = count
+        
+        # Convert to MUI pie chart format
+        pie_data = []
+        total_documents = sum(type_counts.values())
+        
+        # Generate colors for the pie chart (you can customize these)
+        colors = [
+            "#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff00",
+            "#ff0000", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
+            "#800080", "#ffa500", "#a52a2a", "#808080", "#000080"
+        ]
+        
+        for index, (doc_type, count) in enumerate(sorted(type_counts.items(), key=lambda x: x[1], reverse=True)):
+            percentage = round((count / total_documents) * 100, 1) if total_documents > 0 else 0
+            
+            pie_data.append({
+                "id": index,
+                "label": doc_type,
+                "value": count,
+                "percentage": percentage,
+                "color": colors[index % len(colors)]  # Cycle through colors if more types than colors
+            })
+        
+        return {
+            "success": True,
+            "data": pie_data,
+            "summary": {
+                "total_documents": total_documents,
+                "total_types": len(type_counts),
+                "collections_processed": len(collection_names)
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Failed to fetch document type counts: {str(e)}",
+            "data": [],
+            "summary": {
+                "total_documents": 0,
+                "total_types": 0,
+                "collections_processed": 0
+            }
+        }
+    
 @router.get("/documents/{doc_year}")
 async def get_all_docs_for_year(
     doc_year: str,
