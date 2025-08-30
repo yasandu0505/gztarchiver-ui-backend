@@ -49,7 +49,7 @@ async def get_dashboard_statu():
         "years_covered": years_covered
 
     }
-
+    
 def serialize_doc(doc):
     """Convert Mongo _id and return only relevant fields"""
     return {
@@ -62,42 +62,160 @@ def serialize_doc(doc):
         "download_url": doc.get("download_url"),
         "source": doc.get("source"),
         "availability": doc.get("availability"),
-        "score": doc.get("score", 0)  
+        "score": doc.get("score", 0)
     }
 
 @app.post("/search")
 async def search_documents(payload: dict = Body(...)):
     query = payload.get("query", "")
-    if not query:
-        return {"results": []}
+    page = payload.get("page", 1)
+    limit = payload.get("limit", 50)  # Default 50 items per page
     
-    results = []
-    for col in collection_names:
-        # Search only in document_type and description fields using $or operator
-        cursor = db[col].find(
-            {
-                "$or": [
-                    {"document_type": {"$regex": query, "$options": "i"}},
-                    {"description": {"$regex": query, "$options": "i"}}
-                ]
-            },
-            {
-                "document_id": 1,
-                "description": 1,
-                "document_date": 1,
-                "document_type": 1,
-                "file_path": 1,
-                "download_url": 1,
-                "source": 1,
-                "availability": 1
+    if not query:
+        return {
+            "results": [],
+            "pagination": {
+                "current_page": page,
+                "total_pages": 0,
+                "total_count": 0,
+                "limit": limit,
+                "has_next": False,
+                "has_prev": False
             }
-        )
+        }
 
-        results.extend([serialize_doc(doc) for doc in cursor])
+    # Calculate offset
+    offset = (page - 1) * limit
+    
+    # Build the search query
+    search_query = {
+        "$or": [
+            {"document_type": {"$regex": query, "$options": "i"}},
+            {"description": {"$regex": query, "$options": "i"}}
+        ]
+    }
+    
+    projection = {
+        "document_id": 1,
+        "description": 1,
+        "document_date": 1,
+        "document_type": 1,
+        "file_path": 1,
+        "download_url": 1,
+        "source": 1,
+        "availability": 1
+    }
+    
+    all_results = []
+    total_count = 0
+    
+    # First, get total count across all collections
+    for col in collection_names:
+        count = db[col].count_documents(search_query)
+        total_count += count
+    
+    # Then get the paginated results
+    collected_results = []
+    remaining_offset = offset
+    remaining_limit = limit
+    
+    for col in collection_names:
+        if remaining_limit <= 0:
+            break
+            
+        # Get count for this collection
+        col_count = db[col].count_documents(search_query)
+        
+        if col_count == 0:
+            continue
+            
+        if remaining_offset >= col_count:
+            # Skip this entire collection
+            remaining_offset -= col_count
+            continue
+        
+        # Get documents from this collection
+        cursor = db[col].find(search_query, projection).skip(remaining_offset).limit(remaining_limit)
+        col_results = [serialize_doc(doc) for doc in cursor]
+        
+        collected_results.extend(col_results)
+        remaining_limit -= len(col_results)
+        remaining_offset = 0  # We've handled the offset
+    
+    # Sort the collected results by date
+    sorted_results = sorted(
+        collected_results, 
+        key=lambda x: x.get("document_date", ""), 
+        reverse=True
+    )
+    
+    # Calculate pagination info
+    total_pages = (total_count + limit - 1) // limit  # Ceiling division
+    has_next = page < total_pages
+    has_prev = page > 1
+    
+    return {
+        "results": sorted_results,
+        "pagination": {
+            "current_page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "limit": limit,
+            "has_next": has_next,
+            "has_prev": has_prev,
+            "start_index": offset + 1 if total_count > 0 else 0,
+            "end_index": min(offset + len(sorted_results), total_count)
+        }
+    }
 
-    results = sorted(results, key=lambda x: x.get("document_date", ""), reverse=True)
+# def serialize_doc(doc):
+#     """Convert Mongo _id and return only relevant fields"""
+#     return {
+#         "id": str(doc["_id"]),
+#         "document_id": doc.get("document_id"),
+#         "description": doc.get("description"),
+#         "document_date": doc.get("document_date"),
+#         "document_type": doc.get("document_type"),
+#         "file_path": doc.get("file_path"),
+#         "download_url": doc.get("download_url"),
+#         "source": doc.get("source"),
+#         "availability": doc.get("availability"),
+#         "score": doc.get("score", 0)  
+#     }
 
-    return {"results": results}
+# @app.post("/search")
+# async def search_documents(payload: dict = Body(...)):
+#     query = payload.get("query", "")
+#     if not query:
+#         return {"results": []}
+    
+#     results = []
+#     for col in collection_names:
+#         # Search only in document_type and description fields using $or operator
+#         cursor = db[col].find(
+#             {
+#                 "$or": [
+#                     {"document_type": {"$regex": query, "$options": "i"}},
+#                     {"description": {"$regex": query, "$options": "i"}}
+#                 ]
+#             },
+#             {
+#                 "document_id": 1,
+#                 "description": 1,
+#                 "document_date": 1,
+#                 "document_type": 1,
+#                 "file_path": 1,
+#                 "download_url": 1,
+#                 "source": 1,
+#                 "availability": 1
+#             }
+#         )
+
+#         results.extend([serialize_doc(doc) for doc in cursor])
+
+#     results = sorted(results, key=lambda x: x.get("document_date", ""), reverse=True)
+
+#     return {"results": results}
 
 @router.get("/documents/{doc_year}")
 async def get_all_docs_for_year(
