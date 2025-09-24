@@ -1,10 +1,14 @@
 from fastapi import FastAPI , APIRouter, Query, Body
+from fastapi.middleware.cors import CORSMiddleware
 from database import collection_names, all_docs, individual_doc , db
 from bson import ObjectId
 from typing import Optional, List, Dict, Any, Tuple
 import re
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 app = FastAPI()
 router = APIRouter()
 
@@ -1023,6 +1027,18 @@ async def get_individual_doc(doc_year : str, doc_id : str):
             "error" : "Document not found"
         }
     return individual_doc(doc)
+
+
+origins = [value for key, value in os.environ.items() if key.endswith("_CORS")]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,            # or ["*"] for all
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.include_router(router)
 
