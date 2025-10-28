@@ -12,53 +12,133 @@ import requests
 import binascii
 from google.protobuf.wrappers_pb2 import StringValue
 import json
+import asyncio
+from functools import lru_cache
+import time
 
 load_dotenv()
 app = FastAPI()
 router = APIRouter()
 
-@router.get("/dashboard-status")
-async def get_dashboard_status():
-    #  Total documents
-    total_docs = sum(db[col].count_documents({}) for col in collection_names)
-    
-    #  Available languages
-    languages = set()
-    for col in collection_names:
-        cursor = db[col].find({}, {"file_path": 1})
-        for doc in cursor:
-            fp = doc.get("file_path", "").lower()
-            if "english" in fp:
-                languages.add("English")
-            if "sinhala" in fp:
-                languages.add("Sinhala")
-            if "tamil" in fp:
-                languages.add("Tamil")
-                
-    document_types = set()
-    for col in collection_names:
-        cursor = db[col].find({}, {"document_type": 1})
-        for doc in cursor:
-            doc_type = doc.get("document_type")
-            if doc_type:
-                document_types.add(doc_type.title().strip().replace("_", " "))
-                
-    #  Years covered
+# Auto-optimize database on startup (optional)
+async def optimize_database_on_startup():
+    """Automatically create indexes on startup"""
+    try:
+        print("🔧 Optimizing database indexes...")
+        for collection_name in collection_names:
+            try:
+                collection = db[collection_name]
+                # Create essential indexes
+                collection.create_index("availability")
+                collection.create_index([("availability", 1), ("document_type", 1)])
+                collection.create_index("document_type")
+                print(f"✓ Optimized {collection_name}")
+            except Exception as e:
+                print(f"⚠️  Could not optimize {collection_name}: {e}")
+        print("✅ Database optimization complete!")
+    except Exception as e:
+        print(f"⚠️  Database optimization failed: {e}")
+
+# Uncomment the line below to auto-optimize on startup
+app.add_event_handler("startup", optimize_database_on_startup)
+
+# Cache for dashboard data (5 minutes TTL)
+dashboard_cache = {}
+CACHE_TTL = 300  # 5 minutes
+
+@lru_cache(maxsize=1)
+def get_years_covered():
+    """Cached function to get years covered - rarely changes"""
     years = sorted([
         int(col.replace("gazettes_", "")) 
         for col in collection_names 
         if col.startswith("gazettes_") and col.replace("gazettes_", "").isdigit()
-        ])
+    ])
+    return {"from": years[0], "to": years[-1]} if years else {}
 
-    years_covered = {"from": years[0], "to": years[-1]} if years else {}
+async def get_collection_stats_async(collection_name: str) -> Dict[str, Any]:
+    """Get statistics for a single collection asynchronously"""
+    try:
+        # Use aggregation pipeline for better performance
+        pipeline = [
+            {
+                "$group": {
+                    "_id": None,
+                    "total_docs": {"$sum": 1},
+                    "available_docs": {
+                        "$sum": {
+                            "$cond": [
+                                {"$eq": ["$availability", "Available"]},
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    "document_types": {"$addToSet": "$document_type"}
+                }
+            }
+        ]
+        
+        result = list(db[collection_name].aggregate(pipeline))
+        if result:
+            return {
+                "total_docs": result[0]["total_docs"],
+                "available_docs": result[0]["available_docs"],
+                "document_types": [dt for dt in result[0]["document_types"] if dt]
+            }
+        else:
+            return {"total_docs": 0, "available_docs": 0, "document_types": []}
+    except Exception as e:
+        print(f"Error processing collection {collection_name}: {e}")
+        return {"total_docs": 0, "available_docs": 0, "document_types": []}
+
+@router.get("/dashboard-status")
+async def get_dashboard_status():
+    """Optimized dashboard status with caching and parallel processing"""
+    current_time = time.time()
     
-    return {
-        "total_docs" : total_docs,
-        "available_languages" : sorted(list(languages)),
-        "document_types": sorted(list(document_types)),
+    # Check cache first
+    if "dashboard_data" in dashboard_cache:
+        cached_data, cache_time = dashboard_cache["dashboard_data"]
+        if current_time - cache_time < CACHE_TTL:
+            return cached_data
+    
+    # Get years covered (cached)
+    years_covered = get_years_covered()
+    
+    # Process all collections in parallel
+    tasks = [get_collection_stats_async(col) for col in collection_names]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Aggregate results
+    total_docs = 0
+    available_docs = 0
+    all_document_types = set()
+    
+    for result in results:
+        if isinstance(result, dict):
+            total_docs += result.get("total_docs", 0)
+            available_docs += result.get("available_docs", 0)
+            all_document_types.update(result.get("document_types", []))
+    
+    # Clean and format document types
+    document_types = sorted([
+        doc_type.title().strip().replace("_", " ") 
+        for doc_type in all_document_types 
+        if doc_type
+    ])
+    
+    response_data = {
+        "total_docs": total_docs,
+        "available_docs": available_docs,
+        "document_types": document_types,
         "years_covered": years_covered
-
     }
+    
+    # Cache the result
+    dashboard_cache["dashboard_data"] = (response_data, current_time)
+    
+    return response_data
 
 def serialize_doc(doc):
     """Convert Mongo _id and return only relevant fields"""
@@ -424,7 +504,6 @@ async def search_document(documentId : str):
         print(f"Document not Found : {document_output}")
         return document_output
 
-
 def check_for_relationships_on_document(documentId : str):
     QUERY_API = os.getenv("QUERY_API")
     
@@ -455,7 +534,6 @@ def check_for_relationships_on_document(documentId : str):
         return {
             "error" : str(e)
         }
-
 
 def fetch_document_name(documentId : str):
     QUERY_API = os.getenv("QUERY_API")
