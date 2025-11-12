@@ -1,32 +1,44 @@
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
-from dotenv import load_dotenv
-import os
+from pymongo.database import Database
+from config.settings import settings
 import sys
+from typing import List
 
-def connec_to_db():
-    load_dotenv()
-    MONGODB_URI = os.getenv("MONGODB_URI")
+
+def connect_to_db() -> MongoClient:
+    """
+    Connect to MongoDB using settings.
     
-    if MONGODB_URI:
-        print(f"✅ MONGODB_URI found: {MONGODB_URI[:20]}...")
-    else:
+    Returns:
+        MongoDB client instance
+        
+    Raises:
+        SystemExit: If connection fails
+    """
+    mongodb_uri = settings.mongodb_uri
+    
+    if not mongodb_uri:
         print("❌ MONGODB_URI not found in environment")
-        print("Available env vars:", list(os.environ.keys()))
+        sys.exit(1)
+    
+    if mongodb_uri:
+        print(f"✅ MONGODB_URI found: {mongodb_uri[:20]}...")
     
     try:
-        client = MongoClient(MONGODB_URI)
+        client = MongoClient(mongodb_uri)
         client.admin.command('ping')
         print("✅ Connected to MongoDB successfully.")
         return client
     except ConnectionFailure as e:
         print("❌ Failed to connect to MongoDB:", e)
         sys.exit(1)
-        return None
 
-client = connec_to_db()
-db = client.doc_db
-collection_names = db.list_collection_names()
+
+# Initialize database connection
+client = connect_to_db()
+db: Database = client.doc_db
+collection_names: List[str] = db.list_collection_names()
 
 
 
