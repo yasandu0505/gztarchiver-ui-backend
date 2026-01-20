@@ -1,44 +1,43 @@
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
-from pymongo.database import Database
-from config.settings import settings
-import sys
-from typing import List
+import requests
+from config import settings
+from requests import Session
 
+def connect_to_github():
+    github_api = settings.github_api
+    github_user = settings.github_user
+    github_repository = settings.github_repository
+    github_api_key = settings.github_api_key
+    github_target_dir = settings.github_target_dir
 
-def connect_to_db() -> MongoClient:
-    """
-    Connect to MongoDB using settings.
-    
-    Returns:
-        MongoDB client instance
-        
-    Raises:
-        SystemExit: If connection fails
-    """
-    mongodb_uri = settings.mongodb_uri
-    
-    if not mongodb_uri:
-        print("❌ MONGODB_URI not found in environment")
-        sys.exit(1)
-    
-    if mongodb_uri:
-        print(f"✅ MONGODB_URI found: {mongodb_uri[:20]}...")
-    
-    try:
-        client = MongoClient(mongodb_uri)
-        client.admin.command('ping')
-        print("✅ Connected to MongoDB successfully.")
-        return client
-    except ConnectionFailure as e:
-        print("❌ Failed to connect to MongoDB:", e)
-        sys.exit(1)
+    # base repo url
+    connection_url = f"{github_api}/repos/{github_user}/{github_repository}"
 
+    # creating a persistent session
+    session = Session()
+    session.headers.update({
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"token {github_api_key}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    })
 
-# Initialize database connection
-client = connect_to_db()
-db: Database = client.doc_db
-collection_names: List[str] = db.list_collection_names()
+    print(f"🔌 Connecting to GitHub repository: {github_repository} (owner: {github_user})")
 
+    # test the connection by querying repo metadata
+    response = session.get(connection_url)
 
+    if response.status_code == 200:
+        repo_info = response.json()
+        print(f"✅ Connected successfully!")
+        print(f"📦 Repo: {repo_info.get('full_name')}")
+        print(f"🛠 Default Branch: {repo_info.get('default_branch')}")
+    else:
+        print(f"❌ Failed to connect ({response.status_code}): {response.text}")
+        return None
 
+    # return session + repo metadata
+    return {
+        "session": session,
+        "repo_url": connection_url,
+        "default_branch": repo_info.get("default_branch"),
+        "target_dir": github_target_dir
+    }
