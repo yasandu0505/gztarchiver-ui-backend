@@ -147,16 +147,16 @@ class DocumentRepository:
                             if doc_val == val:
                                 return False
                         elif op == "$gt":
-                            if not (doc_val and doc_val > val):
+                            if doc_val is None or doc_val <= val:
                                 return False
                         elif op == "$gte":
-                            if not (doc_val and doc_val >= val):
+                            if doc_val is None or doc_val < val:
                                 return False
                         elif op == "$lt":
-                            if not (doc_val and doc_val < val):
+                            if doc_val is None or doc_val >= val:
                                 return False
                         elif op == "$lte":
-                            if not (doc_val and doc_val <= val):
+                            if doc_val is None or doc_val > val:
                                 return False
                 else:
                     # Direct equality
