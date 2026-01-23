@@ -74,7 +74,7 @@ class QueryAPIClient:
                 if decoded_document_number == document_id:
                     return document["id"]
         
-        return False
+        return None
     
     def get_entity_by_id(self, entity_id: str) -> Optional[str]:
         """
@@ -103,7 +103,8 @@ class QueryAPIClient:
                 if decoded_document_number:
                     return decoded_document_number
         
-        return False
+        return None
+        
     
     def get_entity_relations(self, entity_id: str) -> Dict[str, Any]:
         """

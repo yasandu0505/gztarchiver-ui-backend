@@ -29,6 +29,6 @@ def decode_protobuf(name: str) -> str:
             cleaned = ''.join(ch for ch in decoded_str if ch.isprintable())
             return cleaned.strip()
     except Exception as e:
-        print(f"[DEBUG decode] outer exception: {e}")
+        logging.error(f"Error decoding protobuf: {e}")
         return ""
 
