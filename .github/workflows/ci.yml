@@ -26,7 +26,6 @@ jobs:
         
     - name: Run tests
       env:
-        # Ensure unit tests don't try to make network requests during initialization
         GLOBAL_METADATA_URL: ""
       run: |
         python -m pytest

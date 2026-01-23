@@ -26,11 +26,6 @@ class DashboardService:
         Get years covered by gazette collections (dynamically calculated).
         In the new system, we could scan all docs, but for now we'll stick to a wide range or distinct years from docs.
         """
-        # Since we don't have explicit collections, we scan documents to find min/max year
-        # This might be expensive, so we cache the result of the whole dashboard stats anyway
-        # For simplicity, returning a default range or implementing a quick scan if possible.
-        # Let's try to get distinct years from the repository which has the full list.
-        
         try:
             docs = self.repository.store.get_all_documents()
             if not docs:

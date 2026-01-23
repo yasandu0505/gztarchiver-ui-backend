@@ -63,22 +63,6 @@ class SearchService:
         # Calculate offset
         offset = (page - 1) * limit
         
-        # Get results (we get all matching sorted by date, then paginate)
-        # Note: Optimization - if dataset is huge, finding ALL then slicing is slow.
-        # But repository.find_documents takes skip/limit.
-        # However, for correct sorting by date, we might need to get more.
-        # Current repo implementation slices AFTER matching.
-        # We need to ensure we sort BEFORE slicing if we want correct order across the whole dataset.
-        
-        # To support proper sorting, we should let repository handle it or get all matches -> sort -> slice.
-        # Given "global metadata" sounds like it might fit in memory (thousands?), we can get all matches, sort, then slice.
-        
-        # Let's request all matches from repository (limit=0/None), sort them here, then paginate.
-        # Or better, update repository to handle full dataset operations more smartly if needed.
-        # For now, following the pattern: repository.find_documents slices.
-        # BUT repo doesn't allow passing sort key yet.
-        # Let's grab all matches for the query, sort, then slice.
-        
         all_matches = self.repository.find_documents(
             None, 
             search_query, 

@@ -80,9 +80,7 @@ class DocumentRepository:
             documents = self.store.get_all_documents()
             filtered_docs = [doc for doc in documents if self._match_document(doc, query)]
             
-            # Apply sorting implicitly (or explicitly if needed, but usually search service handles it)
-            # The original implementation sorted in search service.
-            
+            # Apply sorting implicitly 
             # Apply pagination
             paginated_docs = filtered_docs[skip : skip + limit]
             
