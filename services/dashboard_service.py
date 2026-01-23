@@ -1,5 +1,5 @@
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any
 from functools import lru_cache
 from database.repository import DocumentRepository
 from services.cache_service import CacheService
@@ -23,7 +23,7 @@ class DashboardService:
     
     def get_years_covered(self) -> Dict[str, int]:
         """
-        Get years covered by gazette collections (dynamically calculated)
+        Get years covered by metadatastore
         """
         try:
             docs = self.repository.store.get_all_documents()
@@ -44,7 +44,6 @@ class DashboardService:
         except Exception:
             return {}
 
-    
     async def get_dashboard_status(self) -> Dict[str, Any]:
         """
         Get dashboard status with caching.
@@ -57,8 +56,7 @@ class DashboardService:
         if cached_data is not None:
             return cached_data
         
-        # In the new single-source-of-truth model, repository.get_collection_stats calculates everything
-        stats = self.repository.get_collection_stats()
+        stats = self.repository.get_dashboard_stats()
         
         # Get years covered
         years_covered = self.get_years_covered()

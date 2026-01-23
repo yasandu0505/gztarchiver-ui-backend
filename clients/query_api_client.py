@@ -19,7 +19,7 @@ class QueryAPIClient:
             "Content-Type": "application/json",
         }
     
-    def _make_request(self, method: str, endpoint: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _make_request(self, endpoint: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Make HTTP request to the Query API.
         
@@ -61,7 +61,7 @@ class QueryAPIClient:
             "name": document_id,
         }
         
-        response = self._make_request("POST", "/v1/entities/search", payload)
+        response = self._make_request("/v1/entities/search", payload)
         
         if not response:
             return None
@@ -90,7 +90,7 @@ class QueryAPIClient:
             "id": entity_id
         }
         
-        response = self._make_request("POST", "/v1/entities/search", payload)
+        response = self._make_request("/v1/entities/search", payload)
         
         if not response:
             return None
@@ -105,7 +105,6 @@ class QueryAPIClient:
         
         return None
         
-    
     def get_entity_relations(self, entity_id: str) -> Dict[str, Any]:
         """
         Get relationships for an entity.
@@ -116,17 +115,12 @@ class QueryAPIClient:
         Returns:
             Dictionary with relationships or error information
         """
-        url = f"{self.base_url}/v1/entities/{entity_id}/relations"
         
         payload = {}
-        
-        try:
-            response = requests.post(url, json=payload, headers=self.headers)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logging.error(f"Error getting entity relations for {entity_id}: {e}")
-            return {
-                "error": str(e)
-            }
 
+        response = self._make_request(f"/v1/entities/{entity_id}/relations", payload)
+
+        if not response:
+            return None
+
+        return response

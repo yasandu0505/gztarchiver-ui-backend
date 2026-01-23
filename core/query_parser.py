@@ -9,7 +9,7 @@ class QueryParser:
     @staticmethod
     def parse_search_query(query: str) -> Tuple[Dict[str, Any], str]:
         """
-        Parse search query into collections, filters, and free text.
+        Parse search query into filters, and free text.
         
         Args:
             query: Search query string with optional filters (key:value)

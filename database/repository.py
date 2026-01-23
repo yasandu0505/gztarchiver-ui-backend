@@ -12,12 +12,9 @@ class DocumentRepository:
         """
         self.store = MetadataStore()
     
-    def get_collection_stats(self, collection_name: str = None) -> Dict[str, Any]:
+    def get_dashboard_stats(self) -> Dict[str, Any]:
         """
         Get statistics for documents.
-        
-        Args:
-            collection_name: Ignored, kept for compatibility.
             
         Returns:
             Dictionary with total_docs, available_docs, and document_types
@@ -38,12 +35,11 @@ class DocumentRepository:
             logging.error(f"Error getting stats: {e}")
             return {"total_docs": 0, "available_docs": 0, "document_types": []}
     
-    def count_documents(self, collection_name: str, query: Dict[str, Any]) -> int:
+    def count_documents(self, query: Dict[str, Any]) -> int:
         """
         Count documents matching a query.
         
         Args:
-            collection_name: Ignored
             query: Query dictionary
             
         Returns:
@@ -58,7 +54,6 @@ class DocumentRepository:
     
     def find_documents(
         self,
-        collection_name: str,
         query: Dict[str, Any],
         projection: Optional[Dict[str, Any]] = None,
         skip: int = 0,
@@ -70,7 +65,6 @@ class DocumentRepository:
         Find documents matching a query.
         
         Args:
-            collection_name: Ignored
             query: Query dictionary
             projection: Fields to include (simple inclusion only for now)
             skip: Number to skip
@@ -110,19 +104,6 @@ class DocumentRepository:
             logging.error(f"Error finding documents: {e}")
             return []
     
-    def get_all_collection_names(self) -> List[str]:
-        """
-        Get mock collection names.
-        
-        Returns:
-            List containing a single dummy collection name.
-        """
-        return ["global_metadata"]
-    
-    def collection_exists(self, collection_name: str) -> bool:
-        """Check if collection exists."""
-        return True
-
     def _match_document(self, doc: Dict[str, Any], query: Dict[str, Any]) -> bool:
         """
         Match a document against a MongoDB-style query.

@@ -58,13 +58,12 @@ class SearchService:
         }
         
         # Get count for pagination
-        total_count = self.repository.count_documents(None, search_query)
+        total_count = self.repository.count_documents(search_query)
         
         # Calculate offset
         offset = (page - 1) * limit
         
         paginated_results = self.repository.find_documents(
-            collection_name=None,
             query=search_query,
             projection=projection,
             skip=offset,
