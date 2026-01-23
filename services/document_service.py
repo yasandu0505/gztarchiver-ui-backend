@@ -1,5 +1,6 @@
 from typing import Dict, Any, List, Optional
 from clients.query_api_client import QueryAPIClient
+import logging
 
 
 class DocumentService:
@@ -27,9 +28,9 @@ class DocumentService:
         entity_id = self.api_client.search_entity(document_id)
         
         if entity_id:
-            print(f"Document Found : {entity_id}")
+            logging.info(f"Document Found : {entity_id}")
         else:
-            print(f"Document not Found : {entity_id}")
+            logging.info(f"Document not Found : {entity_id}")
         
         return entity_id
     
@@ -46,7 +47,7 @@ class DocumentService:
         relationship_response = self.api_client.get_entity_relations(document_id)
         
         if "error" in relationship_response:
-            print("Error:", relationship_response["error"])
+            logging.error(f"Error getting relationships: {relationship_response['error']}")
             return relationship_response["error"]
         
         # Filter and enrich relationships
