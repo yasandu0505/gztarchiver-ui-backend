@@ -40,10 +40,10 @@ class SearchService:
             return self._empty_results(page, limit)
         
         # Parse the search query
-        mongo_filters, free_text = self.query_parser.parse_search_query(query)
+        metadatastore_filters, free_text = self.query_parser.parse_search_query(query)
         
         # Build the MongoDB-style query (which repository matches in memory)
-        search_query = self.query_builder.build_mongodb_query(mongo_filters, free_text)
+        search_query = self.query_builder.build_metadatastore_query(metadatastore_filters, free_text)
         
         # Define projection
         projection = {
@@ -93,7 +93,7 @@ class SearchService:
             "query_info": {
                 "parsed_query": query,
                 "target_collections": "global_metadata",
-                "filters_applied": len(mongo_filters),
+                "filters_applied": len(metadatastore_filters),
                 "has_free_text": bool(free_text),
                 "search_query": str(search_query) 
             }

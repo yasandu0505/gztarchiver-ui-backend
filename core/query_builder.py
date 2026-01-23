@@ -2,24 +2,24 @@ from typing import Dict, Any
 
 
 class QueryBuilder:
-    """Builder for MongoDB queries combining filters and free text search"""
+    """Builder for MetadataStore queries combining filters and free text search"""
     
     @staticmethod
-    def build_mongodb_query(mongo_filters: Dict[str, Any], free_text: str) -> Dict[str, Any]:
+    def build_metadatastore_query(metadatastore_filters: Dict[str, Any], free_text: str) -> Dict[str, Any]:
         """
-        Build the final MongoDB query combining filters and free text search.
+        Build the final MetadataStore query combining filters and free text search.
         
         Args:
-            mongo_filters: Dictionary of MongoDB filter conditions
+            metadatastore_filters: Dictionary of MetadataStore filter conditions
             free_text: Free text search string
             
         Returns:
-            MongoDB query dictionary
+            MetadataStore query dictionary
         """
         query_parts = []
         
         # Add structured filters
-        for field, filter_condition in mongo_filters.items():
+        for field, filter_condition in metadatastore_filters.items():
             query_parts.append({field: filter_condition})
         
         # Add free text search if present
@@ -44,7 +44,7 @@ class QueryBuilder:
         
         # Combine all parts with AND logic
         if len(query_parts) == 0:
-            return {}  # Empty query means get all documents
+            return {}  # Empty query means get all metadatastore documents
         elif len(query_parts) == 1:
             return query_parts[0]
         else:

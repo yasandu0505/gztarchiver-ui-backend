@@ -15,7 +15,7 @@ class QueryParser:
             query: Search query string with optional filters (key:value)
             
         Returns:
-            Tuple of (mongo_filters, free_text)
+            Tuple of (metadatastore_filters, free_text)
         """
         if not query:
             return {}, ""
@@ -28,39 +28,39 @@ class QueryParser:
         free_text = re.sub(filter_pattern, '', query).strip()
         free_text = ' '.join(free_text.split())  # Clean up extra spaces
         
-        mongo_filters = {}
+        metadatastore_filters = {}
         
         for key, value in filters:
             if key.lower() == 'date':
                 # Handle date filters
                 date_filter = QueryParser.parse_date_filter(value)
                 if date_filter:
-                    mongo_filters.update(date_filter)
+                    metadatastore_filters.update(date_filter)
             
             elif key.lower() == 'type':
                 # Document type filter
-                mongo_filters["document_type"] = {"$regex": value, "$options": "i"}
+                metadatastore_filters["document_type"] = {"$regex": value, "$options": "i"}
             
             elif key.lower() == 'id':
                 # Document ID filter
-                mongo_filters["document_id"] = {"$regex": value, "$options": "i"}
+                metadatastore_filters["document_id"] = {"$regex": value, "$options": "i"}
             
             elif key.lower() == 'source':
                 # Source filter
-                mongo_filters["source"] = {"$regex": value, "$options": "i"}
+                metadatastore_filters["source"] = {"$regex": value, "$options": "i"}
             
             elif key.lower() == 'available':
                 # Availability filter
                 if value.lower() in ['yes', 'true', 'available']:
-                    mongo_filters["availability"] = "Available"
+                    metadatastore_filters["availability"] = "Available"
                 elif value.lower() in ['no', 'false', 'unavailable']:
-                    mongo_filters["availability"] = {"$ne": "Available"}
+                    metadatastore_filters["availability"] = {"$ne": "Available"}
             
             elif key.lower() == 'status':
                 # Generic status filter (maps to availability for now)
-                mongo_filters["availability"] = {"$regex": value, "$options": "i"}
+                metadatastore_filters["availability"] = {"$regex": value, "$options": "i"}
         
-        return mongo_filters, free_text
+        return metadatastore_filters, free_text
     
     @staticmethod
     def parse_date_filter(date_value: str) -> Dict[str, Any]:
