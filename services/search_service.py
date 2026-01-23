@@ -40,7 +40,7 @@ class SearchService:
             return self._empty_results(page, limit)
         
         # Parse the search query
-        _, mongo_filters, free_text = self.query_parser.parse_search_query(query)
+        mongo_filters, free_text = self.query_parser.parse_search_query(query)
         
         # Build the MongoDB-style query (which repository matches in memory)
         search_query = self.query_builder.build_mongodb_query(mongo_filters, free_text)
@@ -63,25 +63,17 @@ class SearchService:
         # Calculate offset
         offset = (page - 1) * limit
         
-        all_matches = self.repository.find_documents(
-            None, 
-            search_query, 
-            projection, 
-            skip=0, 
-            limit=1000000 # Large number to get all for sorting
+        paginated_results = self.repository.find_documents(
+            collection_name=None,
+            query=search_query,
+            projection=projection,
+            skip=offset,
+            limit=limit,
+            sort_key="document_date",
+            reverse=True  # newest first
         )
-        
-        # Sort by date (newest first)
-        sorted_results = sorted(
-            all_matches,
-            key=lambda x: x.get("document_date", ""),
-            reverse=True
-        )
-        
-        # Apply pagination
-        paginated_results = sorted_results[offset : offset + limit]
-        
-        # Calculate pagination info
+
+        # Pagination metadata
         total_pages = (total_count + limit - 1) // limit if total_count > 0 else 0
         has_next = page < total_pages
         has_prev = page > 1

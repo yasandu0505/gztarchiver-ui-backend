@@ -7,7 +7,7 @@ class QueryParser:
     """Parser for search queries with structured filters and free text"""
     
     @staticmethod
-    def parse_search_query(query: str) -> Tuple[List[str], Dict[str, Any], str]:
+    def parse_search_query(query: str) -> Tuple[Dict[str, Any], str]:
         """
         Parse search query into collections, filters, and free text.
         
@@ -15,11 +15,10 @@ class QueryParser:
             query: Search query string with optional filters (key:value)
             
         Returns:
-            Tuple of (target_collections, mongo_filters, free_text)
-            Note: target_collections is deprecated and will always be empty.
+            Tuple of (mongo_filters, free_text)
         """
         if not query:
-            return [], {}, ""
+            return {}, ""
         
         # Extract structured filters (key:value)
         filter_pattern = r'(\w+):([^\s]+)'
@@ -29,13 +28,12 @@ class QueryParser:
         free_text = re.sub(filter_pattern, '', query).strip()
         free_text = ' '.join(free_text.split())  # Clean up extra spaces
         
-        target_collections = []
         mongo_filters = {}
         
         for key, value in filters:
             if key.lower() == 'date':
                 # Handle date filters
-                _, date_filter = QueryParser.parse_date_filter(value)
+                date_filter = QueryParser.parse_date_filter(value)
                 if date_filter:
                     mongo_filters.update(date_filter)
             
@@ -62,18 +60,18 @@ class QueryParser:
                 # Generic status filter (maps to availability for now)
                 mongo_filters["availability"] = {"$regex": value, "$options": "i"}
         
-        return target_collections, mongo_filters, free_text
+        return mongo_filters, free_text
     
     @staticmethod
-    def parse_date_filter(date_value: str) -> Tuple[List[str], Dict[str, Any]]:
+    def parse_date_filter(date_value: str) -> Dict[str, Any]:
         """
         Parse date filter value and return date filters.
         
         Args:
-            date_value: Date filter value (e.g., "2015", "2015-01", "2015-01-31", "this-year")
+            date_value: Date filter value (e.g., "2015", "2015-01", "2015-01-31", "this-year", "last-year", "last-x-days")
             
         Returns:
-            Tuple of (empty_list, date_filter_dict)
+            A MongoDB-style date flter dictionary.
         """
         date_filter = {}
         current_year = datetime.now().year
@@ -91,7 +89,8 @@ class QueryParser:
                 
                 # Add date range filter
                 start_date_str = start_date.strftime("%Y-%m-%d")
-                date_filter["document_date"] = {"$gte": start_date_str}
+                end_date_str = datetime.now().strftime("%Y-%m-%d")
+                date_filter["document_date"] = {"$gte": start_date_str, "$lte": end_date_str}
                 
             except (ValueError, IndexError):
                 pass
@@ -110,6 +109,6 @@ class QueryParser:
             # Add exact date filter
             date_filter["document_date"] = date_value
         
-        return [], date_filter
+        return date_filter
 
 

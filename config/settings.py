@@ -17,7 +17,10 @@ class Settings:
         self.query_api: str = os.getenv("QUERY_API", "")
         
         # Cache settings
-        self.cache_ttl: int = 300  # 5 minutes in seconds
+        self.cache_ttl: int = int(os.getenv("CACHE_TTL", 300))
+
+        # Request timeout
+        self.request_timeout: int = int(os.getenv("REQUEST_TIMEOUT", 10))
     
     @property
     def cors_origins(self) -> List[str]:

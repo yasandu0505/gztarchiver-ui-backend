@@ -29,7 +29,8 @@ class QueryBuilder:
                     {"document_type": {"$regex": free_text, "$options": "i"}},
                     {"description": {"$regex": free_text, "$options": "i"}},
                     {"document_id": {"$regex": free_text, "$options": "i"}},
-                    {"document_date": free_text}  # Exact match for full dates
+                    {"document_date": {"$regex": f"^{free_text}", "$options": "i"}}
+
                 ]
             }
             

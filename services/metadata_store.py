@@ -32,7 +32,7 @@ class MetadataStore:
                 self._data = []
                 return
 
-            response = requests.get(url)
+            response = requests.get(url, timeout=settings.request_timeout)
             response.raise_for_status()
             
             raw_data = response.json()

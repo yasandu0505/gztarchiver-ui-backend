@@ -1,6 +1,7 @@
 from typing import Dict, Any, List, Optional
 from services.metadata_store import MetadataStore
 import re
+import logging
 
 class DocumentRepository:
     """Repository for document operations using global metadata store"""
@@ -34,7 +35,7 @@ class DocumentRepository:
                 "document_types": document_types
             }
         except Exception as e:
-            print(f"Error getting stats: {e}")
+            logging.error(f"Error getting stats: {e}")
             return {"total_docs": 0, "available_docs": 0, "document_types": []}
     
     def count_documents(self, collection_name: str, query: Dict[str, Any]) -> int:
@@ -52,7 +53,7 @@ class DocumentRepository:
             documents = self.store.get_all_documents()
             return sum(1 for doc in documents if self._match_document(doc, query))
         except Exception as e:
-            print(f"Error counting documents: {e}")
+            logging.error(f"Error counting documents: {e}")
             return 0
     
     def find_documents(
@@ -61,7 +62,9 @@ class DocumentRepository:
         query: Dict[str, Any],
         projection: Optional[Dict[str, Any]] = None,
         skip: int = 0,
-        limit: int = 50
+        limit: int = 50,
+        sort_key: Optional[str] = None,
+        reverse: bool = False
     ) -> List[Dict[str, Any]]:
         """
         Find documents matching a query.
@@ -77,14 +80,20 @@ class DocumentRepository:
             List of documents
         """
         try:
-            documents = self.store.get_all_documents()
-            filtered_docs = [doc for doc in documents if self._match_document(doc, query)]
-            
-            # Apply sorting implicitly 
-            # Apply pagination
-            paginated_docs = filtered_docs[skip : skip + limit]
-            
-            # Apply projection (simple version)
+            matched_docs = []
+
+            for doc in self.store.get_all_documents():
+                if self._match_document(doc, query):
+                    matched_docs.append(doc)
+
+            if sort_key:
+                matched_docs.sort(
+                    key=lambda x: x.get(sort_key, ""),
+                    reverse=reverse
+                )
+
+            paginated_docs = matched_docs[skip : skip + limit]
+
             if projection:
                 projected_docs = []
                 for doc in paginated_docs:
@@ -94,10 +103,11 @@ class DocumentRepository:
                             new_doc[key] = doc[key]
                     projected_docs.append(new_doc)
                 return projected_docs
-            
+
             return paginated_docs
+
         except Exception as e:
-            print(f"Error finding documents: {e}")
+            logging.error(f"Error finding documents: {e}")
             return []
     
     def get_all_collection_names(self) -> List[str]:

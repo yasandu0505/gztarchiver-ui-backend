@@ -38,7 +38,7 @@ class QueryAPIClient:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            print(f"ERROR: {str(e)}")
+            logging.error(f"Error making request to {url}: {str(e)}")
             return None
     
     def search_entity(self, document_id: str, kind_major: str = "Document", kind_minor: str = "") -> Optional[str]:
@@ -66,7 +66,7 @@ class QueryAPIClient:
         if not response:
             return None
         
-        if response.get("body") and isinstance(response["body"], list):
+        if response.get("body") and isinstance(response["body"], list) and len(response["body"]) > 0:
             document = response["body"][0]
             encoded_document_number = document.get("name")
             if encoded_document_number:
@@ -95,7 +95,7 @@ class QueryAPIClient:
         if not response:
             return None
         
-        if response.get("body") and isinstance(response["body"], list):
+        if response.get("body") and isinstance(response["body"], list) and len(response["body"]) > 0:
             document = response["body"][0]
             encoded_document_number = document.get("name")
             if encoded_document_number:
@@ -118,22 +118,14 @@ class QueryAPIClient:
         """
         url = f"{self.base_url}/v1/entities/{entity_id}/relations"
         
-        payload = {
-            "id": "",
-            "relatedEntityId": "",
-            "name": "",
-            "activeAt": "",
-            "startTime": "",
-            "endTime": "",
-            "direction": ""
-        }
+        payload = {}
         
         try:
             response = requests.post(url, json=payload, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            print(f"ERROR: {str(e)}")
+            logging.error(f"Error getting entity relations for {entity_id}: {e}")
             return {
                 "error": str(e)
             }
