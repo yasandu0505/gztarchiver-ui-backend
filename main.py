@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config.settings import settings
 from api.routes import api_router
-from database.optimization import optimize_database_indexes
+
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -23,8 +23,4 @@ app.add_middleware(
 # Register API routes
 app.include_router(api_router)
 
-# Auto-optimize database on startup
-@app.on_event("startup")
-async def startup_event():
-    """Optimize database indexes on startup"""
-    optimize_database_indexes()
+

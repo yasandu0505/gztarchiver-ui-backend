@@ -10,8 +10,8 @@ class Settings:
     """Application settings loaded from environment variables"""
     
     def __init__(self):
-        # MongoDB settings
-        self.mongodb_uri: str = os.getenv("MONGODB_URI", "")
+        # Global Metadata settings
+        self.global_metadata_url: str = os.getenv("GLOBAL_METADATA_URL", "")
         
         # Query API settings
         self.query_api: str = os.getenv("QUERY_API", "")

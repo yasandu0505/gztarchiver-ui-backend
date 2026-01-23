@@ -1,13 +1,12 @@
 import asyncio
 from typing import Dict, Any, List, Tuple
 from database.repository import DocumentRepository
-from database.connection import collection_names
 from core.query_parser import QueryParser
 from core.query_builder import QueryBuilder
 
 
 class SearchService:
-    """Service for document search operations with parallel processing"""
+    """Service for document search operations"""
     
     def __init__(self, repository: DocumentRepository):
         """
@@ -19,25 +18,6 @@ class SearchService:
         self.repository = repository
         self.query_parser = QueryParser()
         self.query_builder = QueryBuilder()
-        # Cache existing collections to avoid repeated checks
-        self._existing_collections_cache = None
-    
-    def _get_existing_collections(self, collections: List[str]) -> List[str]:
-        """
-        Get list of existing collections (cached).
-        
-        Args:
-            collections: List of collection names to check
-            
-        Returns:
-            List of existing collection names
-        """
-        if self._existing_collections_cache is None:
-            all_collections = set(self.repository.db.list_collection_names())
-            self._existing_collections_cache = [
-                col for col in collections if col in all_collections
-            ]
-        return self._existing_collections_cache
     
     async def search_documents(
         self,
@@ -46,7 +26,7 @@ class SearchService:
         limit: int = 50
     ) -> Dict[str, Any]:
         """
-        Search documents with pagination using parallel processing.
+        Search documents with pagination.
         
         Args:
             query: Search query string
@@ -60,28 +40,10 @@ class SearchService:
             return self._empty_results(page, limit)
         
         # Parse the search query
-        target_collections, mongo_filters, free_text = self.query_parser.parse_search_query(query)
+        _, mongo_filters, free_text = self.query_parser.parse_search_query(query)
         
-        # Determine which collections to search
-        if target_collections:
-            collections_to_search = target_collections
-        else:
-            collections_to_search = self.repository.get_all_collection_names()
-        
-        # Reset cache when collections change
-        self._existing_collections_cache = None
-        
-        # Get existing collections once (cached)
-        existing_collections = self._get_existing_collections(collections_to_search)
-        
-        if not existing_collections:
-            return self._empty_results(page, limit)
-        
-        # Build the MongoDB query
+        # Build the MongoDB-style query (which repository matches in memory)
         search_query = self.query_builder.build_mongodb_query(mongo_filters, free_text)
-        
-        # Calculate offset
-        offset = (page - 1) * limit
         
         # Define projection
         projection = {
@@ -95,22 +57,45 @@ class SearchService:
             "availability": 1
         }
         
-        # Get total count and all results in parallel
-        total_count, all_results = await self._search_collections_parallel(
-            existing_collections,
-            search_query,
-            projection
+        # Get count for pagination
+        total_count = self.repository.count_documents(None, search_query)
+        
+        # Calculate offset
+        offset = (page - 1) * limit
+        
+        # Get results (we get all matching sorted by date, then paginate)
+        # Note: Optimization - if dataset is huge, finding ALL then slicing is slow.
+        # But repository.find_documents takes skip/limit.
+        # However, for correct sorting by date, we might need to get more.
+        # Current repo implementation slices AFTER matching.
+        # We need to ensure we sort BEFORE slicing if we want correct order across the whole dataset.
+        
+        # To support proper sorting, we should let repository handle it or get all matches -> sort -> slice.
+        # Given "global metadata" sounds like it might fit in memory (thousands?), we can get all matches, sort, then slice.
+        
+        # Let's request all matches from repository (limit=0/None), sort them here, then paginate.
+        # Or better, update repository to handle full dataset operations more smartly if needed.
+        # For now, following the pattern: repository.find_documents slices.
+        # BUT repo doesn't allow passing sort key yet.
+        # Let's grab all matches for the query, sort, then slice.
+        
+        all_matches = self.repository.find_documents(
+            None, 
+            search_query, 
+            projection, 
+            skip=0, 
+            limit=1000000 # Large number to get all for sorting
         )
         
-        # Sort the collected results by date (newest first)
+        # Sort by date (newest first)
         sorted_results = sorted(
-            all_results,
+            all_matches,
             key=lambda x: x.get("document_date", ""),
             reverse=True
         )
         
-        # Apply pagination after sorting
-        paginated_results = sorted_results[offset:offset + limit]
+        # Apply pagination
+        paginated_results = sorted_results[offset : offset + limit]
         
         # Calculate pagination info
         total_pages = (total_count + limit - 1) // limit if total_count > 0 else 0
@@ -131,88 +116,12 @@ class SearchService:
             },
             "query_info": {
                 "parsed_query": query,
-                "target_collections": target_collections if target_collections else "all",
+                "target_collections": "global_metadata",
                 "filters_applied": len(mongo_filters),
                 "has_free_text": bool(free_text),
-                "search_query": str(search_query)  # Debug info
+                "search_query": str(search_query) 
             }
         }
-    
-    async def _search_collections_parallel(
-        self,
-        collections: List[str],
-        query: Dict[str, Any],
-        projection: Dict[str, Any]
-    ) -> Tuple[int, List[Dict[str, Any]]]:
-        """
-        Search all collections in parallel and return count and results.
-        
-        Args:
-            collections: List of collection names to search
-            query: MongoDB query dictionary
-            projection: Fields to include in results
-            
-        Returns:
-            Tuple of (total_count, all_results)
-        """
-        # Get event loop
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.get_event_loop()
-        
-        # Create tasks for parallel execution
-        count_tasks = [
-            loop.run_in_executor(
-                None,
-                self.repository.count_documents,
-                col_name,
-                query
-            )
-            for col_name in collections
-        ]
-        
-        # Limit results per collection to avoid memory issues
-        # For pagination, we need enough results to sort properly
-        # Using a reasonable limit per collection (can be adjusted based on needs)
-        max_results_per_collection = 1000
-        
-        search_tasks = [
-            loop.run_in_executor(
-                None,
-                self.repository.find_documents,
-                col_name,
-                query,
-                projection,
-                0,  # No skip - we'll get all results
-                max_results_per_collection  # Limit per collection
-            )
-            for col_name in collections
-        ]
-        
-        # Execute all tasks in parallel
-        count_results, search_results = await asyncio.gather(
-            asyncio.gather(*count_tasks, return_exceptions=True),
-            asyncio.gather(*search_tasks, return_exceptions=True)
-        )
-        
-        # Aggregate counts
-        total_count = 0
-        for count_result in count_results:
-            if isinstance(count_result, int):
-                total_count += count_result
-            elif isinstance(count_result, Exception):
-                print(f"Error counting documents: {count_result}")
-        
-        # Aggregate search results
-        all_results = []
-        for search_result in search_results:
-            if isinstance(search_result, list):
-                all_results.extend(search_result)
-            elif isinstance(search_result, Exception):
-                print(f"Error searching documents: {search_result}")
-        
-        return total_count, all_results
     
     def _empty_results(self, page: int, limit: int) -> Dict[str, Any]:
         """Return empty results structure."""
@@ -227,4 +136,3 @@ class SearchService:
                 "has_prev": False
             }
         }
-

@@ -2,7 +2,6 @@ import asyncio
 from typing import Dict, Any, List
 from functools import lru_cache
 from database.repository import DocumentRepository
-from database.connection import collection_names
 from services.cache_service import CacheService
 from config.settings import settings
 
@@ -22,45 +21,39 @@ class DashboardService:
         self.cache_service = cache_service
         self.cache_key = "dashboard_data"
     
-    @lru_cache(maxsize=1)
     def get_years_covered(self) -> Dict[str, int]:
         """
-        Get years covered by gazette collections (cached).
+        Get years covered by gazette collections (dynamically calculated).
+        In the new system, we could scan all docs, but for now we'll stick to a wide range or distinct years from docs.
+        """
+        # Since we don't have explicit collections, we scan documents to find min/max year
+        # This might be expensive, so we cache the result of the whole dashboard stats anyway
+        # For simplicity, returning a default range or implementing a quick scan if possible.
+        # Let's try to get distinct years from the repository which has the full list.
         
-        Returns:
-            Dictionary with 'from' and 'to' years
-        """
-        years = sorted([
-            int(col.replace("gazettes_", ""))
-            for col in collection_names
-            if col.startswith("gazettes_") and col.replace("gazettes_", "").isdigit()
-        ])
-        return {"from": years[0], "to": years[-1]} if years else {}
-    
-    async def get_collection_stats_async(self, collection_name: str) -> Dict[str, Any]:
-        """
-        Get statistics for a single collection asynchronously.
-        
-        Args:
-            collection_name: Name of the collection
-            
-        Returns:
-            Dictionary with total_docs, available_docs, and document_types
-        """
-        # Run in thread pool since repository methods are synchronous
         try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None,
-            self.repository.get_collection_stats,
-            collection_name
-        )
+            docs = self.repository.store.get_all_documents()
+            if not docs:
+                return {}
+            
+            years = set()
+            for doc in docs:
+                date_str = doc.get("document_date", "")
+                if date_str and len(date_str) >= 4 and date_str[:4].isdigit():
+                    years.add(int(date_str[:4]))
+            
+            if not years:
+                return {}
+                
+            sorted_years = sorted(list(years))
+            return {"from": sorted_years[0], "to": sorted_years[-1]}
+        except Exception:
+            return {}
+
     
     async def get_dashboard_status(self) -> Dict[str, Any]:
         """
-        Get dashboard status with caching and parallel processing.
+        Get dashboard status with caching.
         
         Returns:
             Dictionary with dashboard statistics
@@ -70,40 +63,22 @@ class DashboardService:
         if cached_data is not None:
             return cached_data
         
-        # Get years covered (cached)
+        # In the new single-source-of-truth model, repository.get_collection_stats calculates everything
+        stats = self.repository.get_collection_stats()
+        
+        # Get years covered
         years_covered = self.get_years_covered()
-        
-        # Get all collection names
-        collection_names_list = self.repository.get_all_collection_names()
-        
-        # Process all collections in parallel
-        tasks = [
-            self.get_collection_stats_async(col)
-            for col in collection_names_list
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Aggregate results
-        total_docs = 0
-        available_docs = 0
-        all_document_types = set()
-        
-        for result in results:
-            if isinstance(result, dict):
-                total_docs += result.get("total_docs", 0)
-                available_docs += result.get("available_docs", 0)
-                all_document_types.update(result.get("document_types", []))
         
         # Clean and format document types
         document_types = sorted([
             doc_type.title().strip().replace("_", " ")
-            for doc_type in all_document_types
+            for doc_type in stats.get("document_types", [])
             if doc_type
         ])
         
         response_data = {
-            "total_docs": total_docs,
-            "available_docs": available_docs,
+            "total_docs": stats.get("total_docs", 0),
+            "available_docs": stats.get("available_docs", 0),
             "document_types": document_types,
             "years_covered": years_covered
         }
@@ -112,4 +87,3 @@ class DashboardService:
         self.cache_service.set(self.cache_key, response_data)
         
         return response_data
-

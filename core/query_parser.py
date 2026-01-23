@@ -16,6 +16,7 @@ class QueryParser:
             
         Returns:
             Tuple of (target_collections, mongo_filters, free_text)
+            Note: target_collections is deprecated and will always be empty.
         """
         if not query:
             return [], {}, ""
@@ -34,9 +35,7 @@ class QueryParser:
         for key, value in filters:
             if key.lower() == 'date':
                 # Handle date filters
-                collections, date_filter = QueryParser.parse_date_filter(value)
-                if collections:
-                    target_collections.extend(collections)
+                _, date_filter = QueryParser.parse_date_filter(value)
                 if date_filter:
                     mongo_filters.update(date_filter)
             
@@ -68,38 +67,27 @@ class QueryParser:
     @staticmethod
     def parse_date_filter(date_value: str) -> Tuple[List[str], Dict[str, Any]]:
         """
-        Parse date filter value and return target collections and additional date filters.
+        Parse date filter value and return date filters.
         
         Args:
             date_value: Date filter value (e.g., "2015", "2015-01", "2015-01-31", "this-year")
             
         Returns:
-            Tuple of (collections, date_filter_dict)
+            Tuple of (empty_list, date_filter_dict)
         """
-        collections = []
         date_filter = {}
         current_year = datetime.now().year
         
         # Handle relative dates
         if date_value.lower() == 'this-year':
-            collections.append(f"gazettes_{current_year}")
+            date_filter["document_date"] = {"$regex": f"^{current_year}", "$options": "i"}
         elif date_value.lower() == 'last-year':
-            collections.append(f"gazettes_{current_year - 1}")
+            date_filter["document_date"] = {"$regex": f"^{current_year - 1}", "$options": "i"}
         elif date_value.lower().startswith('last-') and date_value.lower().endswith('-days'):
-            # For last-X-days, we need to determine which collections might have those dates
+            # For last-X-days
             try:
                 days = int(date_value.split('-')[1])
-                end_date = datetime.now()
-                start_date = end_date - timedelta(days=days)
-                
-                # Get all years in the range
-                years = set()
-                current_date = start_date
-                while current_date <= end_date:
-                    years.add(current_date.year)
-                    current_date += timedelta(days=32)  # Move to next month
-                
-                collections.extend([f"gazettes_{year}" for year in sorted(years)])
+                start_date = datetime.now() - timedelta(days=days)
                 
                 # Add date range filter
                 start_date_str = start_date.strftime("%Y-%m-%d")
@@ -110,22 +98,18 @@ class QueryParser:
         
         # Handle specific year: 2015 (get ALL documents from that year)
         elif re.match(r'^\d{4}$', date_value):
-            collections.append(f"gazettes_{date_value}")
-            # No additional date filter needed - we want all docs from that year
+            date_filter["document_date"] = {"$regex": f"^{date_value}", "$options": "i"}
         
         # Handle year-month: 2015-01 (get documents from specific month)
         elif re.match(r'^\d{4}-\d{2}$', date_value):
-            year = date_value.split('-')[0]
-            collections.append(f"gazettes_{year}")
             # Add month filter
             date_filter["document_date"] = {"$regex": f"^{date_value}", "$options": "i"}
         
         # Handle full date: 2015-01-31 (get documents from specific date)
         elif re.match(r'^\d{4}-\d{2}-\d{2}$', date_value):
-            year = date_value.split('-')[0]
-            collections.append(f"gazettes_{year}")
             # Add exact date filter
             date_filter["document_date"] = date_value
         
-        return collections, date_filter
+        return [], date_filter
+
 

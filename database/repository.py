@@ -1,83 +1,58 @@
 from typing import Dict, Any, List, Optional
-from pymongo.collection import Collection
-from pymongo.database import Database
-from database.connection import db, collection_names
-from database.schema import serialize_doc
-
+from services.metadata_store import MetadataStore
+import re
 
 class DocumentRepository:
-    """Repository for document database operations"""
+    """Repository for document operations using global metadata store"""
     
-    def __init__(self, database: Optional[Database] = None):
+    def __init__(self):
         """
         Initialize document repository.
-        
-        Args:
-            database: MongoDB database instance. If not provided, uses global db.
         """
-        self.db = database or db
-        self.collection_names = collection_names
+        self.store = MetadataStore()
     
-    def get_collection_stats(self, collection_name: str) -> Dict[str, Any]:
+    def get_collection_stats(self, collection_name: str = None) -> Dict[str, Any]:
         """
-        Get statistics for a single collection using aggregation pipeline.
+        Get statistics for documents.
         
         Args:
-            collection_name: Name of the collection
+            collection_name: Ignored, kept for compatibility.
             
         Returns:
             Dictionary with total_docs, available_docs, and document_types
         """
         try:
-            pipeline = [
-                {
-                    "$group": {
-                        "_id": None,
-                        "total_docs": {"$sum": 1},
-                        "available_docs": {
-                            "$sum": {
-                                "$cond": [
-                                    {"$eq": ["$availability", "Available"]},
-                                    1,
-                                    0
-                                ]
-                            }
-                        },
-                        "document_types": {"$addToSet": "$document_type"}
-                    }
-                }
-            ]
+            documents = self.store.get_all_documents()
             
-            result = list(self.db[collection_name].aggregate(pipeline))
-            if result:
-                return {
-                    "total_docs": result[0]["total_docs"],
-                    "available_docs": result[0]["available_docs"],
-                    "document_types": [dt for dt in result[0]["document_types"] if dt]
-                }
-            else:
-                return {"total_docs": 0, "available_docs": 0, "document_types": []}
+            total_docs = len(documents)
+            available_docs = sum(1 for doc in documents if doc.get("availability") == "Available")
+            document_types = list(set(doc.get("document_type") for doc in documents if doc.get("document_type")))
+            
+            return {
+                "total_docs": total_docs,
+                "available_docs": available_docs,
+                "document_types": document_types
+            }
         except Exception as e:
-            print(f"Error processing collection {collection_name}: {e}")
+            print(f"Error getting stats: {e}")
             return {"total_docs": 0, "available_docs": 0, "document_types": []}
     
     def count_documents(self, collection_name: str, query: Dict[str, Any]) -> int:
         """
-        Count documents in a collection matching a query.
+        Count documents matching a query.
         
         Args:
-            collection_name: Name of the collection
-            query: MongoDB query dictionary
+            collection_name: Ignored
+            query: Query dictionary
             
         Returns:
             Number of matching documents
         """
         try:
-            if collection_name not in self.db.list_collection_names():
-                return 0
-            return self.db[collection_name].count_documents(query)
+            documents = self.store.get_all_documents()
+            return sum(1 for doc in documents if self._match_document(doc, query))
         except Exception as e:
-            print(f"Error counting documents in {collection_name}: {e}")
+            print(f"Error counting documents: {e}")
             return 0
     
     def find_documents(
@@ -89,47 +64,105 @@ class DocumentRepository:
         limit: int = 50
     ) -> List[Dict[str, Any]]:
         """
-        Find documents in a collection matching a query.
+        Find documents matching a query.
         
         Args:
-            collection_name: Name of the collection
-            query: MongoDB query dictionary
-            projection: Fields to include in results
-            skip: Number of documents to skip
-            limit: Maximum number of documents to return
+            collection_name: Ignored
+            query: Query dictionary
+            projection: Fields to include (simple inclusion only for now)
+            skip: Number to skip
+            limit: Max to return
             
         Returns:
-            List of serialized documents
+            List of documents
         """
         try:
-            if collection_name not in self.db.list_collection_names():
-                return []
+            documents = self.store.get_all_documents()
+            filtered_docs = [doc for doc in documents if self._match_document(doc, query)]
             
-            collection: Collection = self.db[collection_name]
-            cursor = collection.find(query, projection).skip(skip).limit(limit)
-            return [serialize_doc(doc) for doc in cursor]
+            # Apply sorting implicitly (or explicitly if needed, but usually search service handles it)
+            # The original implementation sorted in search service.
+            
+            # Apply pagination
+            paginated_docs = filtered_docs[skip : skip + limit]
+            
+            # Apply projection (simple version)
+            if projection:
+                projected_docs = []
+                for doc in paginated_docs:
+                    new_doc = {}
+                    for key, val in projection.items():
+                        if val == 1 and key in doc:
+                            new_doc[key] = doc[key]
+                    projected_docs.append(new_doc)
+                return projected_docs
+            
+            return paginated_docs
         except Exception as e:
-            print(f"Error searching collection {collection_name}: {e}")
+            print(f"Error finding documents: {e}")
             return []
     
     def get_all_collection_names(self) -> List[str]:
         """
-        Get all collection names.
+        Get mock collection names.
         
         Returns:
-            List of collection names
+            List containing a single dummy collection name.
         """
-        return self.collection_names
+        return ["global_metadata"]
     
     def collection_exists(self, collection_name: str) -> bool:
-        """
-        Check if a collection exists.
-        
-        Args:
-            collection_name: Name of the collection
-            
-        Returns:
-            True if collection exists, False otherwise
-        """
-        return collection_name in self.db.list_collection_names()
+        """Check if collection exists."""
+        return True
 
+    def _match_document(self, doc: Dict[str, Any], query: Dict[str, Any]) -> bool:
+        """
+        Match a document against a MongoDB-style query.
+        Supports: equality, $regex, $gt, $gte, $lt, $lte, $ne, $and, $or
+        """
+        if not query:
+            return True
+            
+        for key, condition in query.items():
+            if key == "$and":
+                if not all(self._match_document(doc, subq) for subq in condition):
+                    return False
+            elif key == "$or":
+                if not any(self._match_document(doc, subq) for subq in condition):
+                    return False
+            else:
+                # Field match
+                doc_val = doc.get(key)
+                if isinstance(condition, dict):
+                    # Operator match
+                    for op, val in condition.items():
+                        if op == "$regex":
+                            flags = 0
+                            if condition.get("$options") == "i":
+                                flags = re.IGNORECASE
+                            if not re.search(val, str(doc_val or ""), flags):
+                                return False
+                        elif op == "$eq":
+                            if doc_val != val:
+                                return False
+                        elif op == "$ne":
+                            if doc_val == val:
+                                return False
+                        elif op == "$gt":
+                            if not (doc_val and doc_val > val):
+                                return False
+                        elif op == "$gte":
+                            if not (doc_val and doc_val >= val):
+                                return False
+                        elif op == "$lt":
+                            if not (doc_val and doc_val < val):
+                                return False
+                        elif op == "$lte":
+                            if not (doc_val and doc_val <= val):
+                                return False
+                else:
+                    # Direct equality
+                    if doc_val != condition:
+                        return False
+                        
+        return True
