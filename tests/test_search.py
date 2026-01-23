@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 def test_search_all(client: TestClient):
-    payload = {"query": "Test"}
+    payload = {"query": "type:."} 
     response = client.post("/search", json=payload)
     assert response.status_code == 200
     data = response.json()
@@ -9,7 +9,7 @@ def test_search_all(client: TestClient):
     assert data["pagination"]["total_count"] == 3
 
 def test_search_by_text(client: TestClient):
-    payload = {"query": "Test Doc 1"}
+    payload = {"query": "Colombo Consumer"}
     response = client.post("/search", json=payload)
     assert response.status_code == 200
     data = response.json()
@@ -42,8 +42,7 @@ def test_search_by_date_regex(client: TestClient):
     assert data["results"][0]["document_date"] == "2015-01-01"
 
 def test_search_pagination(client: TestClient):
-    # Set limit to 1
-    payload = {"query": "Test", "limit": 1, "page": 1}
+    payload = {"query": "type:.", "limit": 1, "page": 1}
     response = client.post("/search", json=payload)
     assert response.status_code == 200
     data = response.json()
