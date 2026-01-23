@@ -3,6 +3,7 @@ import json
 from typing import List, Dict, Any, Optional
 from config.settings import settings
 import logging
+from database.models import Docs
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class MetadataStore:
         self.refresh_data()
         
     def refresh_data(self) -> None:
-        """Fetch data from the global metadata URL"""
+        """Fetch data from the global metadata URL and validate against Docs model"""
         try:
             url = settings.global_metadata_url
             if not url:
@@ -34,16 +35,26 @@ class MetadataStore:
             response = requests.get(url)
             response.raise_for_status()
             
-            # The data is expected to be a list of document objects
-            self._data = response.json()
-            logger.info(f"Successfully loaded {len(self._data)} documents from metadata store.")
+            raw_data = response.json()
+            validated_data = []
+            
+            for item in raw_data:
+                try:
+                    # Validate and clean data using Pydantic model
+                    # This ensures our single source of truth (Docs model) is respected
+                    doc = Docs(**item)
+                    validated_data.append(doc.model_dump())
+                except Exception as validation_error:
+                    logger.warning(f"Skipping invalid document: {validation_error}")
+            
+            self._data = validated_data
+            logger.info(f"Successfully loaded and validated {len(self._data)} documents.")
             
         except Exception as e:
             logger.error(f"Failed to fetch global metadata: {e}")
-            # If we fail to fetch, we keep the old data or empty if first run
             if not self._data:
                 self._data = []
 
     def get_all_documents(self) -> List[Dict[str, Any]]:
-        """Get all documents from the store"""
+        """Get all validated documents from the store"""
         return self._data
