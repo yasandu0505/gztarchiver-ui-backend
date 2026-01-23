@@ -23,8 +23,7 @@ class DashboardService:
     
     def get_years_covered(self) -> Dict[str, int]:
         """
-        Get years covered by gazette collections (dynamically calculated).
-        In the new system, we could scan all docs, but for now we'll stick to a wide range or distinct years from docs.
+        Get years covered by gazette collections (dynamically calculated)
         """
         try:
             docs = self.repository.store.get_all_documents()
