@@ -46,7 +46,6 @@ class DocumentRepository:
         Returns:
             Number of matching documents
         """
-        print('count documents initiated....')
         try:
             document_data_frame = pd.DataFrame(self.store.get_all_documents())
             count = document_data_frame.apply(
@@ -88,8 +87,11 @@ class DocumentRepository:
             )]
 
             # sorting
+            # sorting
             if sort_key:
                 sorted_data_frame = filtered_docs.sort_values(by=sort_key, ascending=not reverse)
+            else:
+                sorted_data_frame = filtered_docs
                 
             # pagination
             paginated_docs = sorted_data_frame[skip : skip + limit]

@@ -17,7 +17,8 @@ def mock_metadata_store():
                 "reasoning": "This gazette notification announces the Colombo Consumers' Price Index...",
                 "download_url": "https://example.com/1895-18.pdf",
                 "source": "https://example.com/1895-18_E.pdf",
-                "availability": "Available"
+                "availability": "Available",
+                "file_path": "path/to/1895-18"
             },
             {
                 "document_id": "1947-44",
@@ -27,7 +28,8 @@ def mock_metadata_store():
                 "reasoning": "This gazette content primarily involves the exercise of regulatory powers...",
                 "download_url": "https://example.com/1947-44.pdf",
                 "source": "https://example.com/1947-44_E.pdf",
-                "availability": "Available"
+                "availability": "Available",
+                "file_path": "path/to/1947-44"
             },
             {
                 "document_id": "2056-34",
@@ -37,7 +39,8 @@ def mock_metadata_store():
                 "reasoning": "NOT-FOUND",
                 "download_url": "N/A",
                 "source": "N/A",
-                "availability": "Unavailable"
+                "availability": "Unavailable",
+                "file_path": "path/to/2056-34"
             }
         ]
         mock_get.return_value = mock_data
