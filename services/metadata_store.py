@@ -54,7 +54,9 @@ class MetadataStore:
             logger.error(f"Failed to fetch global metadata: {e}")
             if not self._data:
                 self._data = []
-
-    def get_all_documents(self) -> List[Dict[str, Any]]:
+    
+    @property
+    def documents(self) -> List[Dict[str, Any]]:
         """Get all validated documents from the store"""
         return self._data
+    

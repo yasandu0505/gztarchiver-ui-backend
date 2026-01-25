@@ -26,7 +26,7 @@ class DashboardService:
         Get years covered by metadatastore
         """
         try:
-            docs = self.repository.store.get_all_documents()
+            docs = self.repository.store.documents
             if not docs:
                 return {}
             

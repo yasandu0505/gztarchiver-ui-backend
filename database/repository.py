@@ -21,7 +21,7 @@ class DocumentRepository:
             Dictionary with total_docs, available_docs, and document_types
         """
         try:
-            document_data_frame = pd.DataFrame(self.store.get_all_documents())
+            document_data_frame = pd.DataFrame(self.store.documents)
             
             total_docs = len(document_data_frame)
             available_docs = len(document_data_frame[document_data_frame["availability"] == "Available"])
@@ -47,7 +47,7 @@ class DocumentRepository:
             Number of matching documents
         """
         try:
-            document_data_frame = pd.DataFrame(self.store.get_all_documents())
+            document_data_frame = pd.DataFrame(self.store.documents)
             count = document_data_frame.apply(
                 lambda row: self._match_document(row.to_dict(), query),
                 axis=1
@@ -79,7 +79,7 @@ class DocumentRepository:
             List of documents
         """
         try:
-            document_data_frame = pd.DataFrame(self.store.get_all_documents())
+            document_data_frame = pd.DataFrame(self.store.documents)
             
             filtered_docs = document_data_frame[document_data_frame.apply(
                 lambda row: self._match_document(row.to_dict(), query),
