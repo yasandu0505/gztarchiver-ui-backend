@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 from services.metadata_store import MetadataStore
 import re
 import logging
+import pandas as pd
 
 class DocumentRepository:
     """Repository for document operations using global metadata store"""
@@ -20,11 +21,11 @@ class DocumentRepository:
             Dictionary with total_docs, available_docs, and document_types
         """
         try:
-            documents = self.store.get_all_documents()
+            document_data_frame = pd.DataFrame(self.store.get_all_documents())
             
-            total_docs = len(documents)
-            available_docs = sum(1 for doc in documents if doc.get("availability") == "Available")
-            document_types = list(set(doc.get("document_type") for doc in documents if doc.get("document_type")))
+            total_docs = len(document_data_frame)
+            available_docs = len(document_data_frame[document_data_frame["availability"] == "Available"])
+            document_types = (document_data_frame["document_type"].dropna().unique().tolist())
             
             return {
                 "total_docs": total_docs,
@@ -45,13 +46,18 @@ class DocumentRepository:
         Returns:
             Number of matching documents
         """
+        print('count documents initiated....')
         try:
-            documents = self.store.get_all_documents()
-            return sum(1 for doc in documents if self._match_document(doc, query))
+            document_data_frame = pd.DataFrame(self.store.get_all_documents())
+            count = document_data_frame.apply(
+                lambda row: self._match_document(row.to_dict(), query),
+                axis=1
+            ).sum()
+            return int(count)
         except Exception as e:
             logging.error(f"Error counting documents: {e}")
             return 0
-    
+
     def find_documents(
         self,
         query: Dict[str, Any],
@@ -74,38 +80,32 @@ class DocumentRepository:
             List of documents
         """
         try:
-            matched_docs = []
+            document_data_frame = pd.DataFrame(self.store.get_all_documents())
+            
+            filtered_docs = document_data_frame[document_data_frame.apply(
+                lambda row: self._match_document(row.to_dict(), query),
+                axis=1
+            )]
 
-            for doc in self.store.get_all_documents():
-                if self._match_document(doc, query):
-                    matched_docs.append(doc)
-
+            # sorting
             if sort_key:
-                matched_docs.sort(
-                    key=lambda x: x.get(sort_key, ""),
-                    reverse=reverse
-                )
-
-            paginated_docs = matched_docs[skip : skip + limit]
+                sorted_data_frame = filtered_docs.sort_values(by=sort_key, ascending=not reverse)
+                
+            # pagination
+            paginated_docs = sorted_data_frame[skip : skip + limit]
 
             # Filter fields based on the projection dictionary.
             # If a projection is provided, only fields with value 1 are included in the result.
             if projection:
-                projected_docs = []
-                for doc in paginated_docs:
-                    new_doc = {}
-                    for key, val in projection.items():
-                        if val == 1 and key in doc:
-                            new_doc[key] = doc[key]
-                    projected_docs.append(new_doc)
-                return projected_docs
+                fields = [k for k, v in projection.items() if v == 1]
+                paginated_docs = paginated_docs[fields]
 
-            return paginated_docs
+            return paginated_docs.to_dict(orient="records")
 
         except Exception as e:
             logging.error(f"Error finding documents: {e}")
             return []
-    
+
     def _match_document(self, doc: Dict[str, Any], query: Dict[str, Any]) -> bool:
         """
         Match a document against a MongoDB-style query.

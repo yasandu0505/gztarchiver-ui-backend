@@ -17,7 +17,11 @@ class DocumentService:
     
     def validate_document(self, document_id: str) -> Optional[str]:
         """
-        Validate document on graph and return entity ID if found.
+        Validate document on graph and return entity ID if found. Basically check the user requested document node is exists or not.
+        If exists return with the actual entity_id
+
+        user request -> 2153-12
+        expected output if the document existsts -> 2153-12_doc_34
         
         Args:
             document_id: Document ID to validate
