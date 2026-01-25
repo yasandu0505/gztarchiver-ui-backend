@@ -45,7 +45,8 @@ class SearchService:
         # Build the MongoDB-style query (which repository matches in memory)
         search_query = self.query_builder.build_metadatastore_query(metadatastore_filters, free_text)
         
-        # Define projection
+        # This specifies which fields to include in the output.
+        # A value of 1 means 'include'. This simulates MongoDB's projection feature.
         projection = {
             "document_id": 1,
             "description": 1,
@@ -63,6 +64,8 @@ class SearchService:
         # Calculate offset
         offset = (page - 1) * limit
         
+        # Query the repository with the constructed search query and projection.
+        # find_documents handles matching, sorting, pagination, and field filtering (projection).
         paginated_results = self.repository.find_documents(
             query=search_query,
             projection=projection,

@@ -88,6 +88,8 @@ class DocumentRepository:
 
             paginated_docs = matched_docs[skip : skip + limit]
 
+            # Filter fields based on the projection dictionary.
+            # If a projection is provided, only fields with value 1 are included in the result.
             if projection:
                 projected_docs = []
                 for doc in paginated_docs:
