@@ -68,10 +68,13 @@ class QueryAPIClient:
         
         if response.get("body") and isinstance(response["body"], list) and len(response["body"]) > 0:
             document = response["body"][0]
+            # Getting the document number from the graph (ex: 2153-12)
             encoded_document_number = document.get("name")
             if encoded_document_number:
                 decoded_document_number = decode_protobuf(encoded_document_number)
+                # Check whether the document number is == document id (ex: 2153-12 == 2153-12)
                 if decoded_document_number == document_id:
+                    # Later the return the actual doucment id (ex: 2153-12_doc_34)
                     return document["id"]
         
         return None
