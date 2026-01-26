@@ -20,7 +20,7 @@ async def search_document(
     Returns:
         Entity ID if found, False if not found
     """
-    document_output = document_service.validate_document(documentId)
+    document_output = document_service.is_document_available(documentId)
     return document_output
 
 

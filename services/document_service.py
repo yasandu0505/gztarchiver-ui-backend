@@ -15,7 +15,7 @@ class DocumentService:
         """
         self.api_client = api_client
     
-    def validate_document(self, document_id: str) -> Optional[str]:
+    def is_document_available(self, document_id: str) -> Optional[str]:
         """
         Validate document on graph and return entity ID if found. Basically check the user requested document node is exists or not.
         If exists return with the actual entity_id
