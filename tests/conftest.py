@@ -11,8 +11,7 @@ def mock_metadata_store():
             "description": "Department of Census and Statistics - The Colombo Consumer's Price Index for the Month of December 2014 was 180.2",
             "document_date": "2015-01-01",
             "document_type": "ORGANISATIONAL",
-            "reasoning": "This gazette notification announces the Colombo Consumers' Price Index...",
-            "download_url": "https://example.com/1895-18.pdf",
+            "categorisation": "This gazette notification announces the Colombo Consumers' Price Index...",
             "source": "https://example.com/1895-18_E.pdf",
             "availability": "Available",
             "file_path": "path/to/1895-18"
@@ -22,8 +21,7 @@ def mock_metadata_store():
             "description": "Central Bank of Sri Lanka - Order under the Registered Stock & Securities Ordinance to raise of loan in Sri Lanka",
             "document_date": "2016-01-01",
             "document_type": "LEGAL_REGULATORY",
-            "reasoning": "This gazette content primarily involves the exercise of regulatory powers...",
-            "download_url": "https://example.com/1947-44.pdf",
+            "categorisation": "This gazette content primarily involves the exercise of regulatory powers...",
             "source": "https://example.com/1947-44_E.pdf",
             "availability": "Available",
             "file_path": "path/to/1947-44"
@@ -33,8 +31,7 @@ def mock_metadata_store():
             "description": "Land Acquisition - Aarabokka, Hambanthota D/S Division, Hambanthota District and 3 other notices (S only)",
             "document_date": "2018-02-01",
             "document_type": "UNAVAILABLE",
-            "reasoning": "NOT-FOUND",
-            "download_url": "N/A",
+            "categorisation": "NOT-FOUND",
             "source": "N/A",
             "availability": "Unavailable",
             "file_path": "path/to/2056-34"
