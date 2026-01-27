@@ -5,8 +5,7 @@ class Docs(BaseModel):
     description: str
     document_date: str
     document_type: str
-    reasoning: str
-    download_url: str
+    categorisation: str
     source: str
     availability: str
     file_path: str = ""

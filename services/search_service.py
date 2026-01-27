@@ -53,7 +53,6 @@ class SearchService:
             "document_date": 1,
             "document_type": 1,
             "file_path": 1,
-            "download_url": 1,
             "source": 1,
             "availability": 1
         }
