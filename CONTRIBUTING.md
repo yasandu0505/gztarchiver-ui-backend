@@ -28,10 +28,10 @@ There are many ways to contribute to this project:
 ### Development Setup
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/LDFLK/gztarchiver-ui-backend.git`
-3. Install dependencies: `pip install -r requirements.txt`
-4. Create a python environment: `python3 -m venv venv`
-5. Activate the python environment: `source venv/bin/activate`
+2. Clone your fork: `git clone https://github.com/your-username/gztarchiver-ui-backend.git`
+3. Create a python environment: `python3 -m venv .venv`
+4. Activate the python environment: `source .venv/bin/activate`
+5. Install dependencies: `pip install -r requirements.txt`
 6. Create a branch: `git checkout -b feature/your-feature-name`
 
 
@@ -122,7 +122,7 @@ We value all contributions and appreciate your effort to improve this project!
 
 ## Additional Resources
 
-- Please reffer to the [Project Documentation](README.md)
+- Please refer to the [Project Documentation](README.md)
 
 ---
 

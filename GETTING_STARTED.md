@@ -38,7 +38,7 @@
    
 3. **Environment Configuration**
 
-   Create a `.env` file in the root directory and follow the [env example](.env.example):
+   Create a `.env` file in the root directory and follow the [env example](./.env.example):
 
    ```env
    GLOBAL_METADATA_URL=YOUR-GLOBAL-METADATA-URL
